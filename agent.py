@@ -90,13 +90,14 @@ llm = ChatOpenAI(
 
 def agent_node(state: AgentState) -> Dict:
     """Agent 思考节点 - 决定下一步操作（带重试机制）"""
-    from langchain_core.messages import SystemMessage, HumanMessage
+    from langchain_core.messages import HumanMessage
     
     messages = state["messages"]
     
-    # 如果是第一轮，添加系统提示和用户指令
+    # 如果是第一轮，添加系统提示和用户指令（硅基流动API不支持SystemMessage，全部用HumanMessage）
     if len(messages) == 0:
-        system_prompt = f"""你是一个专业的笔记整理助手。你的任务是：
+        prompt = f"""【系统指令】
+你是一个专业的笔记整理助手。你的任务是：
 1. 扫描目录 "{state['source_dir']}" 中的所有文件
 2. 读取每个文件的前50行内容，分析其学科分类（如：数学、计算机科学、文学、物理、历史等）
 3. 创建对应的学科文件夹在 "{state['target_dir']}" 目录下
@@ -113,13 +114,12 @@ def agent_node(state: AgentState) -> Dict:
 重要提示：
 - 处理多个文件时，请逐个处理，每完成一个文件操作后等待工具返回结果
 - 由于 API 速率限制，请不要一次性发起多个操作
-"""
-        user_prompt = f"请开始整理笔记：扫描目录 {state['source_dir']}，将整理结果放入 {state['target_dir']}"
+- 必须在 {state['target_dir']} 目录下创建分类文件夹，不要把文件放到源目录
+
+【用户请求】
+请开始整理笔记：扫描目录 {state['source_dir']}，将整理结果放入 {state['target_dir']}"""
         
-        messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=user_prompt)
-        ]
+        messages = [HumanMessage(content=prompt)]
     
     # 添加重试机制处理速率限制
     max_retries = 5
